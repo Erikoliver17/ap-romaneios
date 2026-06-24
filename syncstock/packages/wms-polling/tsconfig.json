@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "@syncstock/core": ["../core/src/index.ts"],
+      "@syncstock/middleware": ["../middleware/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

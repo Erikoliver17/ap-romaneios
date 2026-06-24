@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.*.local
+app/.env
+app/.env.local
+syncstock/.env
+syncstock/.env.local
+
+# Build output
+dist/
+build/
+
+# Supabase temp
+supabase/.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

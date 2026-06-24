@@ -1,0 +1,19 @@
+{
+  "name": "syncstock",
+  "private": true,
+  "workspaces": [
+    "packages/core",
+    "packages/middleware",
+    "packages/wms-polling",
+    "packages/dashboard-api"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev:middleware": "npm run dev --workspace=@syncstock/middleware",
+    "dev:dashboard": "npm run dev --workspace=@syncstock/dashboard-api",
+    "dev:polling": "npm run dev --workspace=@syncstock/wms-polling"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,124 @@
+version: '3.9'
+
+x-env: &env
+  DATABASE_URL: ${DATABASE_URL}
+  REDIS_URL: ${REDIS_URL}
+  NODE_ENV: production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: syncstock
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./packages/core/src/db/migrations:/docker-entrypoint-initdb.d:ro
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d syncstock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redisdata:/data
+    deploy:
+      resources:
+        limits:
+          memory: 150m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  middleware:
+    build:
+      context: .
+      dockerfile: packages/middleware/Dockerfile
+    environment:
+      <<: *env
+      BLING_WEBHOOK_SECRET: ${BLING_WEBHOOK_SECRET}
+      BLING_API_KEY: ${BLING_API_KEY}
+      BLING_API_URL: ${BLING_API_URL:-https://www.bling.com.br/Api/v3}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET_PREV: ${JWT_SECRET_PREV:-}
+      WMS_MODE: modern
+      WMS_BASE_URL: ${WMS_BASE_URL:-https://apigateway.smartgo.com.br}
+      WMS_API_KEY: ${WMS_API_KEY}
+      WMS_DOC_DEPOSITANTE: ${WMS_DOC_DEPOSITANTE}
+      WMS_WEBHOOK_TOKEN: ${WMS_WEBHOOK_TOKEN}
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${MIDDLEWARE_PORT:-3000}:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    restart: unless-stopped
+
+  wms-polling:
+    build:
+      context: .
+      dockerfile: packages/wms-polling/Dockerfile
+    environment:
+      <<: *env
+      WMS_DB_URL: ${WMS_DB_URL}
+      WMS_POLL_INTERVAL_MS: ${WMS_POLL_INTERVAL_MS:-30000}
+      WMS_COMPANY_ID: ${WMS_COMPANY_ID}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    restart: unless-stopped
+    profiles:
+      - legacy-wms
+
+  dashboard-api:
+    build:
+      context: .
+      dockerfile: packages/dashboard-api/Dockerfile
+    environment:
+      <<: *env
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET_PREV: ${JWT_SECRET_PREV:-}
+      JWT_ISSUER: ${JWT_ISSUER:-syncstock}
+      PORT: 4000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${DASHBOARD_PORT:-4000}:4000"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
