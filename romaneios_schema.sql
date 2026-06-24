@@ -443,81 +443,70 @@ CREATE POLICY "anon_select_romaneio_itens_by_token"
 -- SEÇÃO 7: FUNÇÕES PÚBLICAS (SECURITY DEFINER)
 -- =============================================================
 
-CREATE OR REPLACE FUNCTION public.get_romaneio_by_token(p_token UUID)
-RETURNS TABLE (
-    romaneio_id          UUID,
-    token_publico        UUID,
-    data_criacao         TIMESTAMPTZ,
-    data_atualizacao     TIMESTAMPTZ,
-    status               public.romaneio_status,
-    remetente_nome       TEXT,
-    remetente_cnpj       TEXT,
-    remetente_endereco   TEXT,
-    remetente_cidade_uf  TEXT,
-    remetente_cep        TEXT,
-    transportadora_nome  TEXT,
-    transportadora_cnpj  TEXT,
-    motorista_nome       TEXT,
-    motorista_rg         TEXT,
-    motorista_cpf        TEXT,
-    veiculo_modelo       TEXT,
-    veiculo_placa        TEXT,
-    total_nfes           BIGINT,
-    total_volumes        BIGINT,
-    total_peso_kg        NUMERIC,
-    itens                JSON
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-STABLE
-SET search_path = public
-AS $$
+CREATE OR REPLACE FUNCTION public.get_romaneio_by_token(p_token TEXT)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_rom RECORD;
+  v_itens JSONB;
+  v_config RECORD;
 BEGIN
-    RETURN QUERY
-    SELECT
-        r.id,
-        r.token_publico,
-        r.data_criacao,
-        r.data_atualizacao,
-        r.status,
-        cr.nome_empresa::TEXT,
-        cr.cnpj::TEXT,
-        cr.endereco::TEXT,
-        cr.cidade_uf::TEXT,
-        cr.cep::TEXT,
-        r.transportadora_nome::TEXT,
-        r.transportadora_cnpj::TEXT,
-        r.motorista_nome::TEXT,
-        r.motorista_rg::TEXT,
-        r.motorista_cpf::TEXT,
-        r.veiculo_modelo::TEXT,
-        r.veiculo_placa::TEXT,
-        COUNT(ri.id),
-        COALESCE(SUM(ri.qtd_volumes), 0),
-        COALESCE(ROUND(SUM(ri.peso_kg)::NUMERIC, 2), 0),
-        COALESCE(
-            JSON_AGG(
-                JSON_BUILD_OBJECT(
-                    'id',                   ri.id,
-                    'numero_nfe',           ri.numero_nfe,
-                    'cliente_destinatario', ri.cliente_destinatario,
-                    'depositante',          ri.depositante,
-                    'qtd_volumes',          ri.qtd_volumes,
-                    'peso_kg',              ri.peso_kg
-                ) ORDER BY ri.inserido_em
-            ) FILTER (WHERE ri.id IS NOT NULL),
-            '[]'::JSON
-        )
-    FROM public.romaneios r
-    CROSS JOIN (SELECT * FROM public.config_remetente LIMIT 1) cr
-    LEFT JOIN public.romaneio_itens ri ON ri.romaneio_id = r.id
-    WHERE r.token_publico = p_token
-    GROUP BY
-        r.id, r.token_publico, r.data_criacao, r.data_atualizacao, r.status,
-        cr.nome_empresa, cr.cnpj, cr.endereco, cr.cidade_uf, cr.cep,
-        r.transportadora_nome, r.transportadora_cnpj,
-        r.motorista_nome, r.motorista_rg, r.motorista_cpf,
-        r.veiculo_modelo, r.veiculo_placa;
+  SELECT r.*, p.nome AS criado_por_nome, p.email AS criado_por_email
+  INTO v_rom
+  FROM romaneios r
+  LEFT JOIN perfis p ON p.id = r.criado_por
+  WHERE r.token_publico = CASE WHEN p_token ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN p_token::uuid ELSE NULL END
+    AND (r.token_expira_em IS NULL OR r.token_expira_em > NOW())
+    AND r.excluido_em IS NULL;
+
+  IF NOT FOUND THEN RETURN jsonb_build_object('error', 'not_found'); END IF;
+
+  SELECT INTO v_config * FROM config_remetente LIMIT 1;
+
+  SELECT jsonb_agg(jsonb_build_object(
+    'id', i.id,
+    'numero_nfe', i.numero_nfe,
+    'cliente_destinatario', i.cliente_destinatario,
+    'depositante', i.depositante,
+    'qtd_volumes', i.qtd_volumes,
+    'peso_kg', i.peso_kg,
+    'observacao', i.observacao,
+    'inserido_em', i.inserido_em,
+    'bipado_em', i.bipado_em,
+    'bipado_codigo', i.bipado_codigo
+  ) ORDER BY i.inserido_em)
+  INTO v_itens
+  FROM romaneio_itens i WHERE i.romaneio_id = v_rom.id;
+
+  RETURN jsonb_build_object(
+    'romaneio_id', v_rom.id,
+    'token_publico', v_rom.token_publico,
+    'token_expira_em', v_rom.token_expira_em,
+    'data_emissao', v_rom.data_criacao,
+    'data_ultima_atualizacao', v_rom.data_atualizacao,
+    'status', v_rom.status,
+    'observacoes', v_rom.observacoes,
+    'observacao_transportadora', v_rom.observacao_transportadora,
+    'assinatura_motorista', v_rom.assinatura_motorista,
+    'remetente_nome', COALESCE(v_config.nome_empresa, ''),
+    'remetente_cnpj', COALESCE(v_config.cnpj, ''),
+    'remetente_endereco', COALESCE(v_config.endereco, ''),
+    'remetente_cidade_uf', COALESCE(v_config.cidade_uf, ''),
+    'remetente_cep', COALESCE(v_config.cep, ''),
+    'transportadora_nome', v_rom.transportadora_nome,
+    'transportadora_cnpj', v_rom.transportadora_cnpj,
+    'motorista_nome', v_rom.motorista_nome,
+    'motorista_rg', v_rom.motorista_rg,
+    'motorista_cpf', v_rom.motorista_cpf,
+    'veiculo_modelo', v_rom.veiculo_modelo,
+    'veiculo_placa', v_rom.veiculo_placa,
+    'total_nfes', (SELECT COUNT(*) FROM romaneio_itens WHERE romaneio_id = v_rom.id),
+    'total_volumes', (SELECT COALESCE(SUM(qtd_volumes),0) FROM romaneio_itens WHERE romaneio_id = v_rom.id),
+    'total_peso_kg', (SELECT COALESCE(SUM(peso_kg),0) FROM romaneio_itens WHERE romaneio_id = v_rom.id),
+    'depositantes', (SELECT jsonb_agg(DISTINCT depositante) FROM romaneio_itens WHERE romaneio_id = v_rom.id),
+    'itens', COALESCE(v_itens, '[]'::jsonb),
+    'criado_por_nome', v_rom.criado_por_nome,
+    'criado_por_email', v_rom.criado_por_email
+  );
 END;
 $$;
 

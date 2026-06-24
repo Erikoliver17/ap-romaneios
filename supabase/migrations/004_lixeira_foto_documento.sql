@@ -185,7 +185,7 @@ BEGIN
   INTO v_rom
   FROM romaneios r
   LEFT JOIN perfis p ON p.id = r.criado_por
-  WHERE r.token_publico = p_token
+  WHERE r.token_publico = CASE WHEN p_token ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN p_token::uuid ELSE NULL END
     AND (r.token_expira_em IS NULL OR r.token_expira_em > NOW())
     AND r.excluido_em IS NULL;
 
