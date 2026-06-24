@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { RomaneioCompleto, RomaneioItem } from '../types'
-import { Printer, Download } from 'lucide-react'
+import { Printer, Download, ArrowLeft } from 'lucide-react'
 
 function obterDataExtenso(dataEmissao?: string): string {
   if (!dataEmissao) return '_______ de __________________ de ________'
@@ -25,10 +25,19 @@ function obterDataExtenso(dataEmissao?: string): string {
 
 export default function ImpressaoPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [data, setData] = useState<RomaneioCompleto | null>(null)
   const [error, setError] = useState(false)
   const [gerandoPdf, setGerandoPdf] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
+
+  const handleVoltar = () => {
+    if (window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate(`/romaneios/${id}`)
+    }
+  }
 
   useEffect(() => {
     supabase
@@ -92,6 +101,9 @@ export default function ImpressaoPage() {
           <span className="muted">{data.transportadora_nome || 'Aguardando transportadora'}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-secondary" onClick={handleVoltar}>
+            <ArrowLeft size={15} /> Voltar
+          </button>
           <button className="btn-secondary" onClick={() => window.print()}>
             <Printer size={15} /> Imprimir
           </button>
