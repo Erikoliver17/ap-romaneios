@@ -264,7 +264,7 @@ RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE v_id UUID;
 BEGIN
   SELECT id INTO v_id FROM romaneios
-  WHERE token_publico = p_token
+  WHERE token_publico = CASE WHEN p_token ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN p_token::uuid ELSE NULL END
     AND (token_expira_em IS NULL OR token_expira_em > NOW())
     AND excluido_em IS NULL
   LIMIT 1;

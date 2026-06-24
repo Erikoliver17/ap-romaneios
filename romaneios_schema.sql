@@ -512,60 +512,42 @@ $$;
 
 
 CREATE OR REPLACE FUNCTION public.preencher_dados_coleta(
-    p_token              UUID,
-    p_transportadora_nome TEXT,
-    p_transportadora_cnpj TEXT,
-    p_motorista_nome     TEXT,
-    p_motorista_rg       TEXT,
-    p_motorista_cpf      TEXT,
-    p_veiculo_modelo     TEXT,
-    p_veiculo_placa      TEXT
+  p_token TEXT,
+  p_transportadora_nome TEXT,
+  p_transportadora_cnpj TEXT,
+  p_motorista_nome TEXT,
+  p_motorista_rg TEXT,
+  p_motorista_cpf TEXT,
+  p_veiculo_modelo TEXT,
+  p_veiculo_placa TEXT,
+  p_observacao TEXT DEFAULT NULL,
+  p_assinatura TEXT DEFAULT NULL
 )
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    v_id     UUID;
-    v_status public.romaneio_status;
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE v_id UUID;
 BEGIN
-    SELECT id, status
-    INTO   v_id, v_status
-    FROM   public.romaneios
-    WHERE  token_publico = p_token
-    FOR UPDATE;
+  SELECT id INTO v_id FROM romaneios
+  WHERE token_publico = CASE WHEN p_token ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' THEN p_token::uuid ELSE NULL END
+    AND (token_expira_em IS NULL OR token_expira_em > NOW())
+    AND excluido_em IS NULL
+  LIMIT 1;
+  
+  IF NOT FOUND THEN RETURN jsonb_build_object('error', 'token_invalido'); END IF;
 
-    IF NOT FOUND THEN
-        RETURN JSON_BUILD_OBJECT(
-            'success', false,
-            'error',   'Romaneio não encontrado. Verifique o link.'
-        );
-    END IF;
+  UPDATE romaneios SET
+    transportadora_nome = p_transportadora_nome,
+    transportadora_cnpj = p_transportadora_cnpj,
+    motorista_nome      = p_motorista_nome,
+    motorista_rg        = p_motorista_rg,
+    motorista_cpf       = p_motorista_cpf,
+    veiculo_modelo      = p_veiculo_modelo,
+    veiculo_placa       = p_veiculo_placa,
+    observacao_transportadora = p_observacao,
+    assinatura_motorista = p_assinatura,
+    status = CASE WHEN status = 'Pendente' THEN 'Preenchido' ELSE status END
+  WHERE id = v_id;
 
-    IF v_status IN ('Liberado', 'Cancelado') THEN
-        RETURN JSON_BUILD_OBJECT(
-            'success', false,
-            'error',   FORMAT('Este romaneio está %s e não aceita mais alterações.', v_status)
-        );
-    END IF;
-
-    UPDATE public.romaneios SET
-        transportadora_nome = p_transportadora_nome,
-        transportadora_cnpj = p_transportadora_cnpj,
-        motorista_nome      = p_motorista_nome,
-        motorista_rg        = p_motorista_rg,
-        motorista_cpf       = p_motorista_cpf,
-        veiculo_modelo      = p_veiculo_modelo,
-        veiculo_placa       = p_veiculo_placa,
-        status              = 'Preenchido'
-    WHERE id = v_id;
-
-    RETURN JSON_BUILD_OBJECT(
-        'success',     true,
-        'message',     'Dados registrados com sucesso! Aguarde a liberação.',
-        'romaneio_id', v_id
-    );
+  RETURN jsonb_build_object('ok', true, 'romaneio_id', v_id);
 END;
 $$;
 
