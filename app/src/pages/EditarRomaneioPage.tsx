@@ -130,10 +130,14 @@ export default function EditarRomaneioPage() {
     if (!val) return
     e.preventDefault()
 
-    // Se for menor ou igual a 9 dígitos, é NF-e curta manual
-    // Se for exatamente 44 dígitos, envia para processamento
-    // Se for um tamanho intermediário (chave parcial), descarta para evitar lixo
-    if (val.length <= 9 || val.length === 44) {
+    const digits = val.replace(/\D/g, '')
+    // Se for uma chave (possui 20 ou mais dígitos), só processa se estiver completa (44 dígitos)
+    if (digits.length >= 20) {
+      if (digits.length === 44) {
+        processarBipagem(val)
+      }
+    } else {
+      // Se for um número normal de NF-e curta, processa diretamente
       processarBipagem(val)
     }
   }

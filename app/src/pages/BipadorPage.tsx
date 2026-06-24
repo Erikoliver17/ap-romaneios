@@ -195,9 +195,15 @@ export default function BipadorPage() {
                 const val = e.currentTarget.value.trim()
                 if (!val) return
                 e.preventDefault()
-                // Se for menor/igual a 9 dígitos ou exatamente 44 dígitos, processa.
-                // Tamanhos intermediários (chave parcial) são descartados para evitar lixo.
-                if (val.length <= 9 || val.length === 44) {
+
+                const digits = val.replace(/\D/g, '')
+                // Se for uma chave (possui 20 ou mais dígitos), só processa se estiver completa (44 dígitos)
+                if (digits.length >= 20) {
+                  if (digits.length === 44) {
+                    handleCodigoSubmitValor(val)
+                  }
+                } else {
+                  // Se for um número normal de NF-e curta, processa diretamente
                   handleCodigoSubmitValor(val)
                 }
               }}
