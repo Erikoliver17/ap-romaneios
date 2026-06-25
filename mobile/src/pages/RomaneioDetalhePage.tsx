@@ -333,6 +333,37 @@ export default function RomaneioDetalhePage() {
     }
   }
 
+  // Quick save only the signature from details view
+  const handleQuickSaveSignature = async () => {
+    if (!id || !assinaturaData) return
+    setSavingColeta(true)
+
+    try {
+      const updateData: Record<string, any> = {
+        assinatura_motorista: assinaturaData
+      }
+
+      if (romaneio?.status === 'Pendente') {
+        updateData.status = 'Preenchido'
+      }
+
+      const { error } = await supabase
+        .from('romaneios')
+        .update(updateData)
+        .eq('id', id)
+
+      if (error) throw error
+
+      toast.success('Assinatura do motorista salva!')
+      setAssinaturaData(null)
+      load()
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao salvar assinatura.')
+    } finally {
+      setSavingColeta(false)
+    }
+  }
+
   // Update Status (Liberar / Cancelar)
   const handleUpdateStatus = async (status: RomaneioStatus) => {
     if (!id || !romaneio) return
@@ -483,6 +514,19 @@ export default function RomaneioDetalhePage() {
                   alt="Assinatura"
                   style={{ width: '100%', maxHeight: '80px', objectFit: 'contain', background: '#fff', border: '1px solid var(--border)', borderRadius: '6px' }}
                 />
+              ) : canEdit ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <SignaturePad onCapture={setAssinaturaData} />
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!assinaturaData || savingColeta}
+                    onClick={handleQuickSaveSignature}
+                    style={{ height: '36px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    {savingColeta ? 'Salvando...' : 'Gravar Assinatura'}
+                  </button>
+                </div>
               ) : (
                 <div className="text-danger" style={{ fontSize: '12px', display: 'flex', gap: '4px', alignItems: 'center' }}>
                   <AlertTriangle size={14} />

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
 import type { Romaneio, RomaneioStatus } from '../types'
-import { Plus, Search, Camera, Truck, Calendar, User, ClipboardList, AlertTriangle, ArrowRight, X } from 'lucide-react'
+import { Plus, Search, Truck, Calendar, User, ClipboardList, AlertTriangle, ArrowRight } from 'lucide-react'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
@@ -12,10 +12,6 @@ export default function DashboardPage() {
   const [filtroStatus, setFiltroStatus] = useState<RomaneioStatus | ''>('')
   const [busca, setBusca] = useState('')
   const [counts, setCounts] = useState({ Pendente: 0, Preenchido: 0, Liberado: 0, Cancelado: 0 })
-  
-  // Modal scan select list states
-  const [showScanModal, setShowScanModal] = useState(false)
-  const [activeRomaneios, setActiveRomaneios] = useState<Romaneio[]>([])
 
   // Load status counts
   const loadCounts = async () => {
@@ -80,10 +76,6 @@ export default function DashboardPage() {
       const { data, error } = await q.limit(20) // Limit to top 20 on mobile
       if (error) throw error
       setRomaneios(data || [])
-
-      // Store active romaneios for scanner selection (Pendente and Preenchido)
-      const actives = (data || []).filter(r => r.status === 'Pendente' || r.status === 'Preenchido')
-      setActiveRomaneios(actives)
     } catch (error) {
       console.error(error)
       toast.error('Erro ao carregar romaneios.')
@@ -122,35 +114,6 @@ export default function DashboardPage() {
   const formatDate = (isoString: string) => {
     const date = new Date(isoString)
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-  }
-
-  // Handle clicking on "Conferir Carga" action
-  const handleOpenScannerSelection = async () => {
-    try {
-      // Query database for all active romaneios (Pendente or Preenchido)
-      const { data, error } = await supabase
-        .from('romaneios')
-        .select('*')
-        .is('excluido_em', null)
-        .in('status', ['Pendente', 'Preenchido'])
-        .order('data_criacao', { ascending: false })
-
-      if (error) throw error
-
-      if (data && data.length > 0) {
-        setActiveRomaneios(data)
-        setShowScanModal(true)
-      } else {
-        toast('Nenhum romaneio ativo aguardando bipagem.', { icon: 'ℹ️' })
-      }
-    } catch (e) {
-      toast.error('Erro ao carregar romaneios ativos.')
-    }
-  }
-
-  const handleSelectScannerRomaneio = (romaneioId: string) => {
-    setShowScanModal(false)
-    navigate(`/romaneios/${romaneioId}/bipar`)
   }
 
   const activeCount = counts.Pendente + counts.Preenchido
@@ -212,19 +175,6 @@ export default function DashboardPage() {
           <div className="action-card-content">
             <Plus size={22} className="action-card-icon" />
             <span className="action-card-text">Criar novo romaneio</span>
-          </div>
-          <ArrowRight size={18} className="text-muted" />
-        </button>
-
-        {/* Action 2: Scan Barcode (Purple border) */}
-        <button
-          onClick={handleOpenScannerSelection}
-          className="action-card purple"
-          style={{ width: '100%', border: '1px solid var(--border)', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-        >
-          <div className="action-card-content">
-            <Camera size={22} className="action-card-icon" />
-            <span className="action-card-text">Conferir carga (Bipar)</span>
           </div>
           <ArrowRight size={18} className="text-muted" />
         </button>
@@ -331,74 +281,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Slide-up active romaneio selection sheet/modal for quick scan */}
-      {showScanModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          zIndex: 200,
-          display: 'flex',
-          alignItems: 'flex-end'
-        }} onClick={() => setShowScanModal(false)}>
-          <div style={{
-            background: 'var(--bg-card)',
-            borderTopLeftRadius: '20px',
-            borderTopRightRadius: '20px',
-            width: '100%',
-            maxHeight: '70vh',
-            overflowY: 'auto',
-            padding: '24px 16px',
-            boxShadow: '0 -4px 10px rgba(0,0,0,0.1)'
-          }} onClick={e => e.stopPropagation()}>
-            
-            <div className="flex-between" style={{ marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '17px', fontWeight: 800 }}>Escolha um Romaneio para Conferir</h3>
-              <button
-                onClick={() => setShowScanModal(false)}
-                style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {activeRomaneios.map(r => (
-                <button
-                  key={r.id}
-                  onClick={() => handleSelectScannerRomaneio(r.id)}
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-highlight)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  <div className="flex-between">
-                    <span className="font-bold" style={{ fontSize: '13px' }}>#{r.id.slice(0, 8).toUpperCase()}</span>
-                    <span className={`badge ${r.status.toLowerCase()}`} style={{ fontSize: '9px' }}>{r.status}</span>
-                  </div>
-                  <div style={{ marginTop: '6px', fontSize: '14px', fontWeight: 700 }}>
-                    {r.transportadora_nome || 'Transportadora a definir'}
-                  </div>
-                  {r.motorista_nome && (
-                    <div className="text-muted" style={{ fontSize: '12px', marginTop: '2px' }}>
-                      Motorista: {r.motorista_nome}
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes spin {

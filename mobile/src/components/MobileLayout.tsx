@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Menu, ArrowLeft, Home, PlusCircle, Settings, LogOut } from 'lucide-react'
+import { Menu, ArrowLeft, Home, PlusCircle, Settings, LogOut, Building2, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { signOut, perfil } = useAuth()
+  const { signOut, perfil, isMaster } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const isHome = pathname === '/'
@@ -121,6 +121,18 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
             <PlusCircle />
             <span>Criar Romaneio</span>
           </Link>
+          {isMaster && (
+            <>
+              <Link to="/transportadoras" className={`drawer-item ${pathname === '/transportadoras' ? 'active' : ''}`} onClick={handleLinkClick}>
+                <Building2 />
+                <span>Transportadoras</span>
+              </Link>
+              <Link to="/lixeira" className={`drawer-item ${pathname === '/lixeira' ? 'active' : ''}`} onClick={handleLinkClick}>
+                <Trash2 />
+                <span>Lixeira</span>
+              </Link>
+            </>
+          )}
           <Link to="/configuracoes" className={`drawer-item ${pathname === '/configuracoes' ? 'active' : ''}`} onClick={handleLinkClick}>
             <Settings />
             <span>Configurações</span>

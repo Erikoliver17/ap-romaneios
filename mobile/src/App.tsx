@@ -8,6 +8,8 @@ import NovoRomaneioPage from './pages/NovoRomaneioPage'
 import RomaneioDetalhePage from './pages/RomaneioDetalhePage'
 import BipadorPage from './pages/BipadorPage'
 import ColetaPublicaPage from './pages/ColetaPublicaPage'
+import LixeiraPage from './pages/LixeiraPage'
+import TransportadorasPage from './pages/TransportadorasPage'
 import ConfiguracoesPage from './pages/ConfiguracoesPage'
 
 export default function App() {
@@ -27,6 +29,8 @@ export default function App() {
           <Route path="/romaneios/novo" element={<ProtectedRoute><NovoRomaneioPage /></ProtectedRoute>} />
           <Route path="/romaneios/:id" element={<ProtectedRoute><RomaneioDetalhePage /></ProtectedRoute>} />
           <Route path="/romaneios/:id/bipar" element={<ProtectedRoute><BipadorPage /></ProtectedRoute>} />
+          <Route path="/transportadoras" element={<ProtectedRoute masterOnly><TransportadorasPage /></ProtectedRoute>} />
+          <Route path="/lixeira" element={<ProtectedRoute masterOnly><LixeiraPage /></ProtectedRoute>} />
           <Route path="/configuracoes" element={<ProtectedRoute><ConfiguracoesPage /></ProtectedRoute>} />
           
           {/* Fallback */}
