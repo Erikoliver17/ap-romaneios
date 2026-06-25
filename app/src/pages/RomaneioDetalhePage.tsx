@@ -278,27 +278,42 @@ export default function RomaneioDetalhePage() {
 
   async function salvarColetaLocal() {
     setErroColeta('')
-    if (!formColeta.transportadora_nome.trim()) { setErroColeta('Nome da transportadora é obrigatório.'); return }
-    if (!validateCNPJ(formColeta.transportadora_cnpj)) { setErroColeta('CNPJ da transportadora inválido.'); return }
-    if (!formColeta.motorista_nome.trim()) { setErroColeta('Nome do motorista é obrigatório.'); return }
-    if (!validateCPF(formColeta.motorista_cpf)) { setErroColeta('CPF do motorista inválido.'); return }
-    if (!formColeta.veiculo_modelo.trim()) { setErroColeta('Modelo do veículo é obrigatório.'); return }
-    if (!validatePlaca(formColeta.veiculo_placa)) { setErroColeta('Placa do veículo inválida (formatos: AAA-0000 ou ABC1D23).'); return }
-    if (!assinaturaLocal) { setErroColeta('A assinatura do motorista é obrigatória.'); return }
+    
+    const transportadora_nome = formColeta.transportadora_nome.trim()
+    const transportadora_cnpj = formColeta.transportadora_cnpj.trim()
+    const motorista_nome = formColeta.motorista_nome.trim()
+    const motorista_rg = formColeta.motorista_rg.trim()
+    const motorista_cpf = formColeta.motorista_cpf.trim()
+    const veiculo_modelo = formColeta.veiculo_modelo.trim()
+    const veiculo_placa = formColeta.veiculo_placa.trim().toUpperCase()
+    const observacao_transportadora = formColeta.observacao_transportadora.trim()
+
+    if (transportadora_cnpj && !validateCNPJ(transportadora_cnpj)) {
+      setErroColeta('CNPJ da transportadora inválido.')
+      return
+    }
+    if (motorista_cpf && !validateCPF(motorista_cpf)) {
+      setErroColeta('CPF do motorista inválido.')
+      return
+    }
+    if (veiculo_placa && !validatePlaca(veiculo_placa)) {
+      setErroColeta('Placa do veículo inválida (formatos: AAA-0000 ou ABC1D23).')
+      return
+    }
 
     setSavingColeta(true)
     const { error } = await supabase
       .from('romaneios')
       .update({
-        transportadora_nome: formColeta.transportadora_nome.trim(),
-        transportadora_cnpj: formColeta.transportadora_cnpj,
-        motorista_nome: formColeta.motorista_nome.trim(),
-        motorista_rg: formColeta.motorista_rg.trim(),
-        motorista_cpf: formColeta.motorista_cpf,
-        veiculo_modelo: formColeta.veiculo_modelo.trim(),
-        veiculo_placa: formColeta.veiculo_placa.trim().toUpperCase(),
-        observacao_transportadora: formColeta.observacao_transportadora.trim() || null,
-        assinatura_motorista: assinaturaLocal,
+        transportadora_nome: transportadora_nome || null,
+        transportadora_cnpj: transportadora_cnpj || null,
+        motorista_nome: motorista_nome || null,
+        motorista_rg: motorista_rg || null,
+        motorista_cpf: motorista_cpf || null,
+        veiculo_modelo: veiculo_modelo || null,
+        veiculo_placa: veiculo_placa || null,
+        observacao_transportadora: observacao_transportadora || null,
+        assinatura_motorista: assinaturaLocal || null,
         status: romaneio?.status === 'Pendente' ? 'Preenchido' : romaneio?.status
       })
       .eq('id', id!)
@@ -797,7 +812,7 @@ export default function RomaneioDetalhePage() {
                 <div style={{ fontWeight: 600, fontSize: 13, textTransform: 'uppercase', color: '#64748b', marginBottom: 6 }}>Transportadora</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div className="field">
-                    <label>Razão Social *</label>
+                    <label>Razão Social</label>
                     <input
                       placeholder="Nome da transportadora"
                       value={formColeta.transportadora_nome}
@@ -805,7 +820,7 @@ export default function RomaneioDetalhePage() {
                     />
                   </div>
                   <div className="field">
-                    <label>CNPJ *</label>
+                    <label>CNPJ</label>
                     <input
                       placeholder="00.000.000/0001-00"
                       value={formColeta.transportadora_cnpj}
@@ -819,7 +834,7 @@ export default function RomaneioDetalhePage() {
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13, textTransform: 'uppercase', color: '#64748b', marginBottom: 6 }}>Motorista</div>
                 <div className="field" style={{ marginBottom: 8 }}>
-                  <label>Nome Completo *</label>
+                  <label>Nome Completo</label>
                   <input
                     placeholder="Nome do motorista"
                     value={formColeta.motorista_nome}
@@ -828,7 +843,7 @@ export default function RomaneioDetalhePage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div className="field">
-                    <label>CPF *</label>
+                    <label>CPF</label>
                     <input
                       placeholder="000.000.000-00"
                       value={formColeta.motorista_cpf}
@@ -851,7 +866,7 @@ export default function RomaneioDetalhePage() {
                 <div style={{ fontWeight: 600, fontSize: 13, textTransform: 'uppercase', color: '#64748b', marginBottom: 6 }}>Veículo</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div className="field">
-                    <label>Modelo *</label>
+                    <label>Modelo</label>
                     <input
                       placeholder="Ex: Volvo FH 460"
                       value={formColeta.veiculo_modelo}
@@ -859,7 +874,7 @@ export default function RomaneioDetalhePage() {
                     />
                   </div>
                   <div className="field">
-                    <label>Placa *</label>
+                    <label>Placa</label>
                     <input
                       placeholder="AAA-0000"
                       value={formColeta.veiculo_placa}
@@ -885,7 +900,7 @@ export default function RomaneioDetalhePage() {
               {/* Assinatura */}
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13, textTransform: 'uppercase', color: '#64748b', marginBottom: 6 }}>
-                  Assinatura do Motorista *
+                  Assinatura do Motorista
                 </div>
                 <SignaturePad onCapture={setAssinaturaLocal} />
               </div>
