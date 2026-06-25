@@ -145,3 +145,13 @@ Este documento resume as implementações realizadas na versão móvel (`/mobile
         *   **Desktop**: [https://app-one-kappa-31.vercel.app](https://app-one-kappa-31.vercel.app)
         *   **Mobile**: [https://mobile-gamma-lovat.vercel.app](https://mobile-gamma-lovat.vercel.app)
 
+---
+
+## 10. Correção de Erro de Roteamento (Vercel 404) no Mobile
+
+*   **Identificação do Problema**: Ao atualizar a página (através de pull-to-refresh ou F5) estando em rotas secundárias (como `/transportadoras`, `/lixeira`, etc.), a Vercel retornava um erro `404 NOT FOUND` pois tentava resolver fisicamente esses arquivos no servidor.
+*   **Resolução**: Criado o arquivo `mobile/vercel.json` configurando regras de redirecionamento (`rewrites`) para direcionar todas as rotas secundárias para a `/index.html` do projeto mobile. Dessa forma, o roteador interno do React (React Router) é capaz de assumir e resolver a URL correta no lado do cliente.
+*   **Redeploy**: Feito o build e deploy na Vercel:
+    *   **Mobile**: [https://mobile-gamma-lovat.vercel.app](https://mobile-gamma-lovat.vercel.app)
+
+
