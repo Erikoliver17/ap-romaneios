@@ -74,6 +74,7 @@ export interface MotoristaCadastrado {
   cpf: string | null
   rg: string | null
   ativo: boolean
+  foto_documento?: string | null
 }
 
 export interface VeiculoCadastrado {
