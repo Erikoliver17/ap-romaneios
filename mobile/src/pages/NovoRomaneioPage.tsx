@@ -27,6 +27,7 @@ export default function NovoRomaneioPage() {
   const [veiculos, setVeiculos] = useState<VeiculoCadastrado[]>([])
   
   const [selectedTranspId, setSelectedTranspId] = useState('')
+  const [transpFilter, setTranspFilter] = useState<'recorrente' | 'outra'>('recorrente')
   const [selectedMotoristaId, setSelectedMotoristaId] = useState('')
   const [selectedVeiculoId, setSelectedVeiculoId] = useState('')
   const [emailNotificacao, setEmailNotificacao] = useState('')
@@ -69,6 +70,11 @@ export default function NovoRomaneioPage() {
   // Filter motoristas and veiculos based on selected transportadora
   const motoristasFiltered = motoristas.filter(m => m.transportadora_id === selectedTranspId)
   const veiculosFiltered = veiculos.filter(v => v.transportadora_id === selectedTranspId)
+  
+  const transportadorasFiltered = transportadoras.filter(t => {
+    if (t.id === selectedTranspId) return true
+    return transpFilter === 'recorrente' ? t.recorrente : !t.recorrente
+  })
   
   const selectedTransp = transportadoras.find(t => t.id === selectedTranspId)
   const selectedMotorista = motoristas.find(m => m.id === selectedMotoristaId)
@@ -398,6 +404,53 @@ export default function NovoRomaneioPage() {
         
         <div className="form-group">
           <label htmlFor="transp">Transportadora (Opcional)</label>
+          
+          <div style={{
+            display: 'flex',
+            background: 'var(--bg-highlight, #f8fafc)',
+            padding: '3px',
+            borderRadius: '8px',
+            marginBottom: '10px',
+            border: '1px solid var(--border, #e2e8f0)'
+          }}>
+            <button
+              type="button"
+              onClick={() => setTranspFilter('recorrente')}
+              style={{
+                flex: 1,
+                height: '32px',
+                border: 'none',
+                borderRadius: '6px',
+                background: transpFilter === 'recorrente' ? '#fff' : 'transparent',
+                color: transpFilter === 'recorrente' ? 'var(--primary, #0284c7)' : 'var(--text-muted, #64748b)',
+                fontWeight: transpFilter === 'recorrente' ? 700 : 500,
+                fontSize: '13px',
+                cursor: 'pointer',
+                boxShadow: transpFilter === 'recorrente' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+              }}
+            >
+              Recorrentes
+            </button>
+            <button
+              type="button"
+              onClick={() => setTranspFilter('outra')}
+              style={{
+                flex: 1,
+                height: '32px',
+                border: 'none',
+                borderRadius: '6px',
+                background: transpFilter === 'outra' ? '#fff' : 'transparent',
+                color: transpFilter === 'outra' ? 'var(--primary, #0284c7)' : 'var(--text-muted, #64748b)',
+                fontWeight: transpFilter === 'outra' ? 700 : 500,
+                fontSize: '13px',
+                cursor: 'pointer',
+                boxShadow: transpFilter === 'outra' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
+              }}
+            >
+              Outras
+            </button>
+          </div>
+
           <select
             id="transp"
             className="input"
@@ -409,7 +462,7 @@ export default function NovoRomaneioPage() {
             }}
           >
             <option value="">— Selecione a Transportadora —</option>
-            {transportadoras.map(t => (
+            {transportadorasFiltered.map(t => (
               <option key={t.id} value={t.id}>{t.nome}</option>
             ))}
           </select>
