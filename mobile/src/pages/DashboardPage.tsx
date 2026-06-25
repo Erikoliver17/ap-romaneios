@@ -101,9 +101,25 @@ export default function DashboardPage() {
   useEffect(() => {
     const channel = supabase
       .channel('dashboard-redesign-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'romaneios' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'romaneios' }, (payload: any) => {
         loadCounts()
         loadRomaneios(filtroStatus, busca)
+
+        const { eventType, new: newRow, old: oldRow } = payload
+
+        if (eventType === 'INSERT') {
+          const transportadora = newRow.transportadora_nome || 'Sem Transportadora'
+          toast.success(`Novo romaneio criado (${transportadora})!`, { id: `realtime-insert-${newRow.id}` })
+        } else if (eventType === 'UPDATE') {
+          if (oldRow && oldRow.status !== newRow.status) {
+            const transportadora = newRow.transportadora_nome || 'Sem Transportadora'
+            toast.success(`Romaneio (${transportadora}) → ${newRow.status}`, { id: `realtime-status-${newRow.id}` })
+          } else if (oldRow && !oldRow.excluido_em && newRow.excluido_em) {
+            toast.error(`Romaneio de ${newRow.transportadora_nome || 'Sem Transportadora'} movido para lixeira.`, { id: `realtime-delete-${newRow.id}` })
+          }
+        } else if (eventType === 'DELETE') {
+          toast.error('Romaneio excluído do banco de dados.', { id: `realtime-db-delete-${oldRow?.id || 'id'}` })
+        }
       })
       .subscribe()
     return () => {

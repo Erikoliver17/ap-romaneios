@@ -2,9 +2,9 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabase'
-import type { Romaneio, RomaneioItem, RomaneioStatus } from '../types'
+import type { Romaneio, RomaneioItem, RomaneioStatus, RomaneioHistorico } from '../types'
 import { useAuth } from '../context/AuthContext'
-import { ArrowLeft, Share2, Camera, Trash2, CheckCircle, Truck, User, CreditCard, PenLine, AlertTriangle, Pencil } from 'lucide-react'
+import { ArrowLeft, Share2, Camera, Trash2, CheckCircle, Truck, User, CreditCard, PenLine, AlertTriangle, Pencil, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 
 // Simple mobile signature pad using standard canvas touch events
 function SignaturePad({ onCapture }: { onCapture: (data: string | null) => void }) {
@@ -138,6 +138,8 @@ export default function RomaneioDetalhePage() {
   
   const [romaneio, setRomaneio] = useState<Romaneio | null>(null)
   const [itens, setItens] = useState<RomaneioItem[]>([])
+  const [historico, setHistorico] = useState<RomaneioHistorico[]>([])
+  const [showHistorico, setShowHistorico] = useState(false)
   const [loading, setLoading] = useState(true)
   
   // Local driver info form states
@@ -164,9 +166,10 @@ export default function RomaneioDetalhePage() {
     if (!id) return
     setLoading(true)
     try {
-      const [{ data: r, error: errR }, { data: its, error: errI }] = await Promise.all([
+      const [{ data: r, error: errR }, { data: its, error: errI }, { data: hist }] = await Promise.all([
         supabase.from('romaneios').select('*').eq('id', id).single(),
-        supabase.from('romaneio_itens').select('*').eq('romaneio_id', id).order('inserido_em')
+        supabase.from('romaneio_itens').select('*').eq('romaneio_id', id).order('inserido_em'),
+        supabase.from('romaneio_historico').select('*').eq('romaneio_id', id).order('executado_em', { ascending: false }),
       ])
 
       if (errR) throw errR
@@ -174,6 +177,7 @@ export default function RomaneioDetalhePage() {
 
       setRomaneio(r)
       setItens(its || [])
+      setHistorico(hist || [])
 
       if (r) {
         setFormColeta({
@@ -805,6 +809,51 @@ export default function RomaneioDetalhePage() {
               </button>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Histórico de eventos */}
+      {historico.length > 0 && (
+        <div className="card no-active" style={{ marginTop: '16px' }}>
+          <button
+            onClick={() => setShowHistorico(v => !v)}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              color: 'inherit'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={16} color="var(--text-muted)" />
+              <span style={{ fontWeight: 700, fontSize: '14px' }}>Histórico de Eventos ({historico.length})</span>
+            </div>
+            {showHistorico ? <ChevronUp size={16} color="var(--text-muted)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
+          </button>
+
+          {showHistorico && (
+            <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '0' }}>
+              {historico.map((h, idx) => (
+                <div key={h.id} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', paddingBottom: idx < historico.length - 1 ? '12px' : 0 }}>
+                  <div style={{
+                    width: '8px', height: '8px', borderRadius: '50%',
+                    background: 'var(--primary)', flexShrink: 0, marginTop: '5px'
+                  }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: '13px', fontWeight: 500 }}>{h.descricao || h.evento}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {new Date(h.executado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
