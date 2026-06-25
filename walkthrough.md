@@ -165,5 +165,21 @@ Este documento resume as implementações realizadas na versão móvel (`/mobile
 *   **Redeploy**: Código buildado e atualizado na Vercel:
     *   **Mobile**: [https://mobile-gamma-lovat.vercel.app](https://mobile-gamma-lovat.vercel.app)
 
+---
+
+## 12. Visualização Ampliada (Lightbox) da CNH do Motorista
+
+*   **Interatividade Otimizada**:
+    *   Nas páginas de transportadoras, ao visualizar a foto da CNH de um motorista cadastrado, a imagem agora possui cursor do tipo `pointer` e suporte a clique.
+    *   Adicionada uma etiqueta visual elegante com o texto **"Clique para ampliar"** (no Desktop) ou **"Toque para ampliar"** (no Mobile) logo abaixo da foto no modal de visualização básico.
+*   **Visualização em Tela Cheia (Lightbox)**:
+    *   Ao clicar/tocar na imagem, o sistema abre uma sobreposição (lightbox modal) ocupando toda a tela com fundo preto fosco de alta opacidade (`rgba(0,0,0,0.95)`).
+    *   A imagem é renderizada no seu tamanho máximo adaptado, ideal para operadores ampliarem e lerem detalhes do documento ou fazerem pinch-to-zoom no celular.
+    *   A sobreposição pode ser fechada clicando/tocando no botão de fechar (`✕`) no canto superior direito ou clicando em qualquer lugar fora da imagem.
+*   **Redeploy**: Construído e publicado na Vercel:
+    *   **Desktop**: [https://app-one-kappa-31.vercel.app](https://app-one-kappa-31.vercel.app)
+    *   **Mobile**: [https://mobile-gamma-lovat.vercel.app](https://mobile-gamma-lovat.vercel.app)
+
+
 
 
