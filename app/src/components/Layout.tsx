@@ -2,12 +2,50 @@ import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 import { FileText, PlusCircle, Settings, LogOut, Truck, Building2, Trash2, Sun, Moon } from 'lucide-react'
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { perfil, signOut, isMaster } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPass, setChangingPass] = useState(false)
+  const [passError, setPassError] = useState('')
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault()
+    setPassError('')
+    if (newPassword.length < 6) {
+      setPassError('A senha deve ter pelo menos 6 caracteres.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPassError('As senhas não coincidem.')
+      return
+    }
+    setChangingPass(true)
+    try {
+      const { error: authErr } = await supabase.auth.updateUser({ password: newPassword })
+      if (authErr) throw authErr
+      
+      const { error: dbErr } = await supabase
+        .from('perfis')
+        .update({ senha_alterada: true, senha_temporaria: null })
+        .eq('id', perfil?.id)
+      if (dbErr) throw dbErr
+      
+      toast.success('Senha atualizada com sucesso!')
+      window.location.reload()
+    } catch (err: any) {
+      setPassError(err.message || 'Erro ao atualizar senha.')
+    } finally {
+      setChangingPass(false)
+    }
+  }
 
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark' ||
@@ -40,6 +78,52 @@ export default function Layout({ children }: { children: ReactNode }) {
       <span>{label}</span>
     </Link>
   )
+
+  if (perfil && perfil.senha_alterada === false) {
+    return (
+      <div className="login-screen">
+        <div className="login-card" style={{ maxWidth: 400 }}>
+          <div className="login-logo">
+            <Truck size={36} color="#2563eb" />
+            <h1>Primeiro Acesso</h1>
+            <p>Crie sua senha pessoal de acesso para continuar</p>
+          </div>
+          <form onSubmit={handleChangePassword} className="login-form">
+            <div className="field">
+              <label>Nova Senha *</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                required
+                autoFocus
+              />
+            </div>
+            <div className="field">
+              <label>Confirmar Nova Senha *</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repita a senha"
+                required
+              />
+            </div>
+            {passError && <div className="error-msg">{passError}</div>}
+            <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+              <button type="button" className="btn-secondary" onClick={handleSignOut} style={{ flex: 1 }}>
+                Sair
+              </button>
+              <button type="submit" className="btn-primary" disabled={changingPass} style={{ flex: 2 }}>
+                {changingPass ? 'Salvando...' : 'Salvar Senha'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-shell">

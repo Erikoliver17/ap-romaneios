@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import type { FormEvent, ChangeEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import type { ConfigRemetente, Perfil, UserRole } from '../types'
-import { Save, UserPlus, Shield } from 'lucide-react'
+import { Save, UserPlus, Shield, Pencil, Trash2 } from 'lucide-react'
 import ConfirmModal from '../components/ConfirmModal'
+import { useAuth } from '../context/AuthContext'
 
 export default function ConfiguracoesPage() {
+  const { user: currentUser } = useAuth()
   const [config, setConfig] = useState<Partial<ConfigRemetente>>({})
   const [perfis, setPerfis] = useState<Perfil[]>([])
   const [savingConfig, setSavingConfig] = useState(false)
@@ -18,9 +20,18 @@ export default function ConfiguracoesPage() {
   const [creatingUser, setCreatingUser] = useState(false)
   const [userMsg, setUserMsg] = useState('')
 
-  const [confirmRole, setConfirmRole] = useState<{ open: boolean; perfilId: string; nome: string; role: UserRole }>({
-    open: false, perfilId: '', nome: '', role: 'colaborador'
+
+  const [editingUser, setEditingUser] = useState<Perfil | null>(null)
+  const [editNome, setEditNome] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editRole, setEditRole] = useState<UserRole>('colaborador')
+  const [updatingUser, setUpdatingUser] = useState(false)
+  const [editError, setEditError] = useState('')
+
+  const [confirmDelete, setConfirmDelete] = useState<{ open: boolean; userId: string; nome: string }>({
+    open: false, userId: '', nome: ''
   })
+  const [deletingUser, setDeletingUser] = useState(false)
 
   useEffect(() => {
     supabase.from('config_remetente').select('*').limit(1).single().then(({ data }) => {
@@ -52,26 +63,74 @@ export default function ConfiguracoesPage() {
     const { error } = await supabase.auth.signUp({
       email: newEmail,
       password: newPassword,
-      options: { data: { nome: newNome, role: newRole } }
+      options: {
+        data: {
+          nome: newNome,
+          role: newRole,
+          senha_temporaria: newPassword
+        }
+      }
     })
     setCreatingUser(false)
     if (error) setUserMsg('Erro: ' + error.message)
     else {
-      setUserMsg('Usuário criado! Ele receberá um e-mail de confirmação.')
+      setUserMsg('Usuário criado com sucesso!')
       setNewEmail(''); setNewNome(''); setNewPassword('')
       supabase.from('perfis').select('*').order('data_criacao').then(({ data }) => setPerfis(data || []))
     }
   }
 
-  function pedirConfirmacaoRole(p: Perfil, novaRole: UserRole) {
-    setConfirmRole({ open: true, perfilId: p.id, nome: p.nome, role: novaRole })
+  useEffect(() => {
+    if (editingUser) {
+      setEditNome(editingUser.nome)
+      setEditEmail(editingUser.email)
+      setEditRole(editingUser.role)
+      setEditError('')
+    }
+  }, [editingUser])
+
+  async function handleUpdateUser(e: FormEvent) {
+    e.preventDefault()
+    if (!editingUser) return
+    setUpdatingUser(true)
+    setEditError('')
+    try {
+      const { error } = await supabase.rpc('admin_update_user', {
+        p_user_id: editingUser.id,
+        p_nome: editNome.trim(),
+        p_email: editEmail.trim(),
+        p_role: editRole
+      })
+      if (error) throw error
+
+      setEditingUser(null)
+      const { data } = await supabase.from('perfis').select('*').order('data_criacao')
+      setPerfis(data || [])
+    } catch (err: any) {
+      setEditError(err.message || 'Erro ao atualizar usuário.')
+    } finally {
+      setUpdatingUser(false)
+    }
   }
 
-  async function confirmarAlterarRole() {
-    await supabase.from('perfis').update({ role: confirmRole.role }).eq('id', confirmRole.perfilId)
-    setPerfis(prev => prev.map(p => p.id === confirmRole.perfilId ? { ...p, role: confirmRole.role } : p))
-    setConfirmRole(c => ({ ...c, open: false }))
+  async function handleDeleteUser() {
+    setDeletingUser(true)
+    try {
+      const { error } = await supabase.rpc('admin_delete_user', {
+        p_user_id: confirmDelete.userId
+      })
+      if (error) throw error
+
+      setConfirmDelete({ open: false, userId: '', nome: '' })
+      const { data } = await supabase.from('perfis').select('*').order('data_criacao')
+      setPerfis(data || [])
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir usuário.')
+    } finally {
+      setDeletingUser(false)
+    }
   }
+
 
   const cf = (field: keyof ConfigRemetente) => ({
     value: (config[field] as string) || '',
@@ -122,7 +181,13 @@ export default function ConfiguracoesPage() {
             <div className="card-title">Usuários do Sistema</div>
             <table className="table">
               <thead>
-                <tr><th>Nome</th><th>E-mail</th><th>Acesso</th></tr>
+                <tr>
+                  <th>Nome</th>
+                  <th>E-mail</th>
+                  <th>Senha Inicial</th>
+                  <th>Acesso</th>
+                  <th style={{ textAlign: 'right' }}>Ações</th>
+                </tr>
               </thead>
               <tbody>
                 {perfis.map(p => (
@@ -130,14 +195,45 @@ export default function ConfiguracoesPage() {
                     <td>{p.nome}</td>
                     <td className="muted">{p.email}</td>
                     <td>
-                      <select
-                        value={p.role}
-                        onChange={e => pedirConfirmacaoRole(p, e.target.value as UserRole)}
-                        className="role-select"
-                      >
-                        <option value="colaborador">Colaborador</option>
-                        <option value="master">Master</option>
-                      </select>
+                      {p.senha_alterada ? (
+                        <span style={{ padding: '2px 8px', borderRadius: '4px', background: '#dcfce7', color: '#15803d', fontSize: '12px', fontWeight: 600 }}>
+                          Pessoal
+                        </span>
+                      ) : (
+                        <code style={{ fontSize: '13px', background: 'var(--bg-highlight)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {p.senha_temporaria}
+                        </code>
+                      )}
+                    </td>
+                    <td>{p.role === 'master' ? 'Master' : 'Colaborador'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          onClick={() => setEditingUser(p)}
+                          title="Editar Usuário"
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-muted)' }}
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          onClick={() => setConfirmDelete({ open: true, userId: p.id, nome: p.nome })}
+                          disabled={currentUser?.id === p.id}
+                          title="Excluir Usuário"
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: currentUser?.id === p.id ? 'not-allowed' : 'pointer',
+                            padding: 4,
+                            color: currentUser?.id === p.id ? '#ccc' : '#ef4444'
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -178,14 +274,70 @@ export default function ConfiguracoesPage() {
         </div>
       </div>
 
+
+      {/* Modal de Editar Usuário */}
+      {editingUser && (
+        <div className="modal-overlay" onClick={() => setEditingUser(null)}>
+          <div className="modal-box" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+            <h3 className="modal-title">Editar Usuário</h3>
+            <form onSubmit={handleUpdateUser} className="settings-form" style={{ marginTop: 16 }}>
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 4 }}>Nome *</label>
+                <input
+                  type="text"
+                  value={editNome}
+                  onChange={e => setEditNome(e.target.value)}
+                  required
+                  placeholder="Nome completo"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)' }}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', marginBottom: 4 }}>E-mail *</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={e => setEditEmail(e.target.value)}
+                  required
+                  placeholder="email@empresa.com"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)' }}
+                />
+              </div>
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 4 }}>Nível de Acesso *</label>
+                <select
+                  value={editRole}
+                  onChange={e => setEditRole(e.target.value as UserRole)}
+                  className="role-select"
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)' }}
+                >
+                  <option value="colaborador">Colaborador</option>
+                  <option value="master">Master</option>
+                </select>
+              </div>
+              {editError && <div className="error-msg" style={{ color: '#ef4444', marginBottom: 12 }}>{editError}</div>}
+              <div className="modal-actions" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 16 }}>
+                <button type="button" className="btn-secondary" onClick={() => setEditingUser(null)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn-primary" disabled={updatingUser}>
+                  {updatingUser ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão */}
       <ConfirmModal
-        open={confirmRole.open}
-        title="Alterar nível de acesso"
-        message={<>Alterar o acesso de <strong>{confirmRole.nome}</strong> para <strong>{confirmRole.role === 'master' ? 'Master' : 'Colaborador'}</strong>?</>}
-        confirmLabel="Confirmar"
-        variant="primary"
-        onConfirm={confirmarAlterarRole}
-        onCancel={() => setConfirmRole(c => ({ ...c, open: false }))}
+        open={confirmDelete.open}
+        title="Excluir Usuário"
+        message={<>Tem certeza que deseja excluir o usuário <strong>{confirmDelete.nome}</strong>? Esta ação é irreversível.</>}
+        confirmLabel={deletingUser ? 'Excluindo...' : 'Excluir'}
+        variant="danger"
+        onConfirm={handleDeleteUser}
+        onCancel={() => setConfirmDelete({ open: false, userId: '', nome: '' })}
       />
     </div>
   )

@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { useLocation, useNavigate, Link } from 'react-router-dom'
-import { Menu, ArrowLeft, Home, PlusCircle, Settings, LogOut, Building2, Trash2 } from 'lucide-react'
+import { Menu, ArrowLeft, Home, PlusCircle, Settings, LogOut, Building2, Trash2, Truck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import toast from 'react-hot-toast'
 
 export default function MobileLayout({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
@@ -10,8 +12,49 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   const { signOut, perfil, isMaster } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPass, setChangingPass] = useState(false)
+  const [passError, setPassError] = useState('')
+
   const isHome = pathname === '/'
   const showBack = !isHome && pathname !== '/login'
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault()
+    setPassError('')
+    if (newPassword.length < 6) {
+      setPassError('A senha deve ter pelo menos 6 caracteres.')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPassError('As senhas não coincidem.')
+      return
+    }
+    setChangingPass(true)
+    try {
+      const { error: authErr } = await supabase.auth.updateUser({ password: newPassword })
+      if (authErr) throw authErr
+      
+      const { error: dbErr } = await supabase
+        .from('perfis')
+        .update({ senha_alterada: true, senha_temporaria: null })
+        .eq('id', perfil?.id)
+      if (dbErr) throw dbErr
+      
+      toast.success('Senha atualizada com sucesso!')
+      window.location.reload()
+    } catch (err: any) {
+      setPassError(err.message || 'Erro ao atualizar senha.')
+    } finally {
+      setChangingPass(false)
+    }
+  }
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/login')
+  }
 
   // Map route to page title for inner headers
   let pageTitle = 'Menu'
@@ -36,6 +79,65 @@ export default function MobileLayout({ children }: { children: ReactNode }) {
   const handleLogout = async () => {
     setDrawerOpen(false)
     await signOut()
+  }
+
+  if (perfil && perfil.senha_alterada === false) {
+    return (
+      <div className="flex-center" style={{ minHeight: '100vh', padding: '24px', flexDirection: 'column', background: 'var(--bg)' }}>
+        <div className="card no-active" style={{ width: '100%', maxWidth: '380px', padding: '32px 24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+          
+          <div className="text-center" style={{ marginBottom: '32px' }}>
+            <div className="flex-center" style={{ margin: '0 auto 12px', width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)' }}>
+              <Truck size={32} />
+            </div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)' }}>Primeiro Acesso</h2>
+            <p className="text-muted" style={{ fontSize: '13px', marginTop: '4px' }}>Crie sua senha pessoal de acesso para continuar</p>
+          </div>
+
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="form-group">
+              <label>Nova Senha *</label>
+              <input
+                type="password"
+                className="input"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Confirmar Nova Senha *</label>
+              <input
+                type="password"
+                className="input"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repita a senha"
+                required
+              />
+            </div>
+
+            {passError && (
+              <div className="text-danger font-bold text-center" style={{ fontSize: '13px', background: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '8px' }}>
+                {passError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, marginTop: '8px' }}>
+              <button type="button" className="btn btn-secondary" onClick={handleSignOut} style={{ flex: 1 }}>
+                Sair
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={changingPass} style={{ flex: 2 }}>
+                {changingPass ? 'Salvando...' : 'Salvar Senha'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
   }
 
   return (

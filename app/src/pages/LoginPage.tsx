@@ -2,12 +2,13 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import { Truck } from 'lucide-react'
 
 export default function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,10 +17,25 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error } = await signIn(email, password)
-    setLoading(false)
-    if (error) setError('E-mail ou senha incorretos.')
-    else navigate('/')
+    try {
+      const { data: email, error: rpcError } = await supabase.rpc('get_email_by_username', { p_username: username.trim() })
+      if (rpcError || !email) {
+        setError('Usuário não encontrado.')
+        setLoading(false)
+        return
+      }
+
+      const { error: signInError } = await signIn(email, password)
+      if (signInError) {
+        setError('Usuário ou senha incorretos.')
+      } else {
+        navigate('/')
+      }
+    } catch (err: any) {
+      setError('Erro ao tentar logar.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -33,12 +49,12 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="field">
-            <label>E-mail</label>
+            <label>Usuário</label>
             <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="seu@email.com"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              placeholder="Digite seu usuário"
               required
               autoFocus
             />

@@ -7,6 +7,8 @@ export interface Perfil {
   email: string
   role: UserRole
   data_criacao: string
+  senha_temporaria?: string | null
+  senha_alterada?: boolean
 }
 
 export interface ConfigRemetente {
