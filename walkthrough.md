@@ -203,5 +203,20 @@ Este documento resume as implementações realizadas na versão móvel (`/mobile
     *   **Excluir Usuário**: Adicionado botão de Lixeira que permite excluir o usuário da base de dados e do Supabase Auth por meio da RPC `admin_delete_user` (desabilitado para o próprio usuário logado).
 *   **Deploy de Produção**:
     *   Compilação e build sem erros no Desktop e Mobile.
+    *   **Mobile**: [https://mobile-gamma-lovat.vercel.app](https://mobile-gamma-lovat.vercel.app)
+
+---
+
+## 14. Opção de Depositante "Transportadoras" e Exposição Direta do Pré-Cadastro no Desktop
+
+*   **Depositante "Transportadoras"**: Adicionado o item `Transportadoras` na lista de opções fixas (`<select>`) de depositantes. Essa alteração foi replicada nas telas de criação e edição de romaneio de ambas as aplicações:
+    *   `app/src/pages/NovoRomaneioPage.tsx`
+    *   `mobile/src/pages/NovoRomaneioPage.tsx`
+    *   `app/src/pages/EditarRomaneioPage.tsx`
+    *   `mobile/src/pages/EditarRomaneioPage.tsx` (nas duas áreas de inserção e edição rápida de itens)
+*   **Exposição do Pré-Cadastro no Desktop**: Removida a lógica de painel colapsável (accordion sanfona) da área de *Pré-cadastro de transportadoras* no arquivo [NovoRomaneioPage.tsx](file:///C:/Users/Logistica/Downloads/Teste/app/src/pages/NovoRomaneioPage.tsx) do Desktop.
+    *   O painel agora permanece **sempre aberto e visível**, expondo as abas de categoria (**Recorrentes** e **Outras**) e os campos de seleção do motorista/veículo de forma imediata e destacada para o operador, igual ao comportamento do aplicativo móvel.
+*   **Deploy de Produção**:
+    *   Compilação e build sem erros no Desktop e Mobile.
     *   **URL Desktop**: [https://app-one-kappa-31.vercel.app](https://app-one-kappa-31.vercel.app)
     *   **URL Mobile**: [https://mobile-gamma-lovat.vercel.app](https://mobile-gamma-lovat.vercel.app)
